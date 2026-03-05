@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Memo Panel Ultra – ChatGPTメモ管理パネル
 // @namespace    https://github.com/metaco4989/memo-panel-ultra
-// @version      5.1.0
-// @description  ブラウザ常駐メモ。タイトル/タグ/フォルダ/検索履歴/Markdownプレビュー/Excel&CSV/ChatGPT→Memo(会話タイトル自動取得)/ピン留め/フォルダ別エクスポート/ドラッグ救済
+// @version      5.1.1
+// @description  ブラウザ常駐メモ。タイトル/タグ/フォルダ/検索履歴/Markdownプレビュー/Excel&CSV/ChatGPT→Memo(会話タイトル自動取得)/ピン留め/フォルダ別エクスポート/ドラッグ救済/最小化ミニバー
 // @author       metaco4989
 // @match        *://*/*
 // @updateURL    https://raw.githubusercontent.com/metaco4989/memo-panel-ultra/main/memo-panel-ultra.user.js
@@ -282,8 +282,8 @@
   const saveFolders = (folders) => store.set(FOLDERS_KEY, JSON.stringify(Array.from(new Set(folders)).filter(Boolean)));
 
   // ===== UI inject guard =====
-  if (window.__pekunMemoUltraInjectedV51) return;
-  window.__pekunMemoUltraInjectedV51 = true;
+  if (window.__pekunMemoUltraInjectedV511) return;
+  window.__pekunMemoUltraInjectedV511 = true;
 
   const state = loadState();
   let folders = loadFolders();
@@ -335,6 +335,11 @@
     .resize{position:absolute;right:6px;bottom:6px;width:16px;height:16px;cursor:nwse-resize;opacity:0.75;user-select:none;}
     .dot{width:3px;height:3px;background:rgba(17,24,39,0.65);border-radius:50%;display:inline-block;margin:1px;}
     .minimized .content,.minimized .footer{display:none;}
+    /* ===== Minibar ===== */
+    .miniLabel{font-size:12px;font-weight:600;display:none;align-items:center;gap:6px;}
+    .minimized .miniLabel{display:inline-flex;}
+    .minimized .hideOnMin{display:none !important;}
+    .minimized .bar{height:36px;}
   `;
   shadow.appendChild(css);
 
@@ -343,6 +348,11 @@
 
   const bar = document.createElement('div');
   bar.className = 'bar';
+
+  // ★最小化時にだけ出すラベル
+  const miniLabel = document.createElement('div');
+  miniLabel.className = 'miniLabel';
+  miniLabel.textContent = 'memo📃';
 
   const titleEl = document.createElement('div');
   titleEl.className = 'title';
@@ -367,6 +377,23 @@
   const btnMin  = document.createElement('div'); btnMin.className='btn'; btnMin.title='最小化'; btnMin.textContent='—';
   const btnHide = document.createElement('div'); btnHide.className='btn'; btnHide.title='非表示(Alt+M)'; btnHide.textContent='×';
 
+  // ★最小化で隠すやつにクラスを付ける
+  titleEl.classList.add('hideOnMin');
+  modePill.classList.add('hideOnMin');
+  folderSel.classList.add('hideOnMin');
+  btnFolderMng.classList.add('hideOnMin');
+  btnList.classList.add('hideOnMin');
+  btnMD.classList.add('hideOnMin');
+  btnPin.classList.add('hideOnMin');
+  btnDate.classList.add('hideOnMin');
+  btnBox.classList.add('hideOnMin');
+  btnNew.classList.add('hideOnMin');
+  btnCSV.classList.add('hideOnMin');
+  btnXLS.classList.add('hideOnMin');
+  // btnMin, btnHide は残す（付けない）
+
+  // bar構成（ミニラベル→通常群→最小化/非表示）
+  bar.appendChild(miniLabel);   // ★最小化時だけ表示
   bar.appendChild(titleEl);
   bar.appendChild(modePill);
   bar.appendChild(folderSel);
@@ -444,11 +471,9 @@
     let newRight = state.pos.right;
     let newBottom = state.pos.bottom;
 
-    // left/top はみ出し救済
     if (r.left < margin) newRight = clamp(newRight + (margin - r.left), 0, window.innerWidth - 80);
     if (r.top < margin) newBottom = clamp(newBottom + (margin - r.top), 0, window.innerHeight - 40);
 
-    // right/bottom はみ出し救済
     if (r.right > window.innerWidth - margin) newRight = clamp(newRight + (r.right - (window.innerWidth - margin)), 0, window.innerWidth - 80);
     if (r.bottom > window.innerHeight - margin) newBottom = clamp(newBottom + (r.bottom - (window.innerHeight - margin)), 0, window.innerHeight - 40);
 
@@ -459,17 +484,17 @@
     saveState(state);
   };
 
+  // ★最小化をミニバー（memo📃 + — + ×）にする
   const applyMinimized = () => {
     if (state.minimized) {
       wrap.classList.add('minimized');
-      host.style.height = '42px';
-      host.style.width = `${clamp(state.size.w, 320, 900)}px`;
+      host.style.height = '36px';
+      host.style.width = '160px';   // ←好みで 120〜220 に変えてOK
     } else {
       wrap.classList.remove('minimized');
       host.style.width = `${state.size.w}px`;
       host.style.height = `${state.size.h}px`;
     }
-    // ★最小化解除/変更のたびに画面内へ補正
     keepInViewport();
   };
 
@@ -522,7 +547,6 @@
       return hay.includes(q);
     });
 
-    // ★ pinned を上に
     filtered.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
     return filtered;
   };
@@ -566,7 +590,7 @@
   };
 
   const renderPreview = () => {
-    const blocks = getFilteredBlocks(); // プレビューも「今見えてる範囲」に合わせる
+    const blocks = getFilteredBlocks();
     const parts = blocks.map(b => {
       const headerLine =
         `### ${b.pinned ? '📌 ' : ''}${b.title || '(no title)'}\n\n` +
@@ -659,7 +683,6 @@
     const v = ta.value;
     const pos = ta.selectionStart ?? 0;
 
-    // 現在位置より前で最後に出てくる "## " を探す
     const before = v.slice(0, pos);
     const headerStart = before.lastIndexOf('\n## ');
     const hs = headerStart >= 0 ? headerStart + 1 : (v.startsWith('## ') ? 0 : -1);
@@ -668,7 +691,6 @@
     const headerLineEnd = v.indexOf('\n', hs);
     const he = headerLineEnd >= 0 ? headerLineEnd : v.length;
 
-    // そのヘッダーが本当に "## " か確認
     if (!v.slice(hs, hs + 3).startsWith('## ')) return null;
     return { start: hs, end: he };
   };
@@ -677,7 +699,7 @@
     const r = findCurrentBlockHeaderRange();
     if (!r) return;
 
-    const line = ta.value.slice(r.start, r.end); // "## ...."
+    const line = ta.value.slice(r.start, r.end);
     const head = line.slice(3).trim();
     const b = parseHeader(head);
 
@@ -690,7 +712,6 @@
     });
 
     ta.value = ta.value.slice(0, r.start) + newHeader + ta.value.slice(r.end);
-    // カーソル位置をなるべく維持
     const delta = newHeader.length - line.length;
     const p = (ta.selectionStart ?? 0) + delta;
     ta.setSelectionRange(p, p);
@@ -701,7 +722,6 @@
 
   // ===== フォルダごとエクスポート =====
   const exportMenu = (kind) => {
-    // kind: 'csv' | 'xls'
     const choice = prompt(
 `エクスポート範囲を選んで
 1) 今見えてる範囲（検索+フォルダフィルタ）
@@ -736,7 +756,6 @@
     }
 
     if (choice.trim() === '3') {
-      // フォルダ分割：folderが空のものは "(none)"
       const map = new Map();
       for (const b of all) {
         const key = (b.folder || '').trim() || '(none)';
@@ -744,12 +763,10 @@
         map.get(key).push(b);
       }
 
-      // pinned を各フォルダ内でも上へ
       for (const [k, arr] of map.entries()) {
         arr.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
       }
 
-      // 連続DLになるので先に注意
       const ok = confirm(`全フォルダを分割で一括エクスポートするよ。\nフォルダ数: ${map.size}\n複数ファイルが連続でダウンロードされる。OK？`);
       if (!ok) return;
 
@@ -797,6 +814,13 @@
     if (state.mdPreview) renderPreview();
   });
 
+  // オプション：ミニバーの memo📃 をダブルクリックで復帰（誤爆少なめ）
+  miniLabel.addEventListener('dblclick', () => {
+    state.minimized = false;
+    saveState(state);
+    applyMinimized();
+  });
+
   // Autosave
   let timer = null;
   ta.addEventListener('input', () => {
@@ -830,7 +854,6 @@
     if (e.altKey && (e.key === 'c' || e.key === 'C')) { e.preventDefault(); exportMenu('csv'); return; }
     if (e.altKey && (e.key === 'e' || e.key === 'E')) { e.preventDefault(); exportMenu('xls'); return; }
     if (e.key === 'Escape') {
-      // ★緊急リカバー：右下へ戻す（詰んだ時の保険）
       state.pos.right = 18; state.pos.bottom = 18;
       host.style.right = '18px'; host.style.bottom = '18px';
       state.visible = true; host.style.display = 'block';
@@ -845,7 +868,6 @@
   const startDrag = (e) => {
     if (e.button !== 0) return;
 
-    // ボタン類や入力に触った時はドラッグしない
     const t = e.target;
     if (t && (t.closest?.('.btn') || t.closest?.('.btnWide') || t.closest?.('.select') || t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA')) {
       return;
@@ -946,7 +968,6 @@
 
           const targetMode = state.chatgptTarget === 'site' ? 'site' : 'global';
 
-          // ChatGPTは自動で ChatGPT フォルダへ
           const folder = 'ChatGPT';
           if (!folders.includes(folder)) {
             folders = Array.from(new Set([...folders, folder]));
