@@ -1,5 +1,10 @@
 # Memo Panel Ultra
 
+[![Install Memo Panel Ultra](https://img.shields.io/badge/Install-Memo%20Panel%20Ultra-brightgreen)](https://raw.githubusercontent.com/metaco4989/memo-panel-ultra/main/memo-panel-ultra.user.js)
+[![Requires Tampermonkey](https://img.shields.io/badge/Requires-Tampermonkey-blue)](https://www.tampermonkey.net/)
+
+ブラウザに常駐するメモパネル…
+
 ブラウザに常駐するメモパネル。
 ChatGPT回答の保存、タグ管理、検索、チェックリスト、Excelエクスポートなどができるユーザースクリプトです。
 
