@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Memo Panel Ultra
-// @namespace    http://tampermonkey.net/
+// @namespace    https://github.com/metaco4989
 // @version      4.0.1
 // @description  ChatGPTメモ管理パネル
 // @author       metaco4989
@@ -522,3 +522,4 @@
   addChatGPTButtons();
 
 })();
+
