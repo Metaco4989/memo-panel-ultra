@@ -3,7 +3,7 @@
 // @namespace    http://tampermonkey.net/
 // @version      4.0.1
 // @description  ChatGPTメモ管理パネル
-// @author       metaco with Pe-kun
+// @author       metaco4989
 // @match        *://*/*
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -520,4 +520,5 @@
   statusRight.textContent = '保存済み';
   renderList();
   addChatGPTButtons();
+
 })();
